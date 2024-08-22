@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
 
-import requests, hashlib
+import atexit
+import hashlib
+import os
+import logging
+import importlib.metadata
+from pathlib import Path
+import platformdirs
+import select
+from sys import exit
+import time
 import xml.etree.ElementTree as ET
+
+import requests
 from mpd import MPDClient
 from mpd.base import ConnectionError, CommandError
-import select
-from pathlib import Path
-import time
-import logging
 import yaml
-import os
-from sys import exit
 
-from yams.configure import configure, remove_log_stream_of_type
-import yams
+from yams.configure import configure, remove_log_stream_of_type, DEFAULT_CACHE_FILENAME
 
 MAX_TRACKS_PER_SCROBBLE = 50
 SCROBBLE_RETRY_INTERVAL = 10
@@ -21,7 +25,9 @@ SCROBBLE_DISK_SAVE_INTERVAL = 1200
 
 logger = logging.getLogger("yams")
 
-SCROBBLES = str(Path(Path.home(), ".config/yams/scrobbles.cache"))
+SCROBBLES = str(
+    Path(platformdirs.user_cache_dir(appname="yams"), DEFAULT_CACHE_FILENAME)
+)
 
 
 def save_failed_scrobbles_to_disk(path, scrobbles):
@@ -343,6 +349,8 @@ def make_scrobble(track_info, status, api_secret=None, **other):
         scrobble["album"] = extract_single(track_info, "album")
     if "track" in track_info:
         scrobble["trackNumber"] = extract_single(track_info, "track")
+    if "albumartist" in track_info:
+        scrobble["albumArtist"] = extract_single(track_info, "albumartist")
     # Check for duration/time in status rather than track_info as they won't be present for tracks not
     # present in the mpd database (ie. streamed tracks)
     if "duration" in status:
@@ -415,6 +423,10 @@ def scrobble_tracks(tracks, url, api_key, api_secret, session_key):
                 tracks[i], "trackNumber"
             )
 
+        if "albumArtist" in tracks[i]:
+            parameters["albumArtist[{}]".format(i)] = extract_single(
+                tracks[i], "albumArtist"
+            )
         if "duration" in tracks[i]:
             parameters["duration[{}]".format(i)] = extract_single(tracks[i], "duration")
 
@@ -631,7 +643,7 @@ def mpd_wait_for_play(client):
             # We're not 'play'ing, so lets wait until the state changes
             changes = client.idle("player")
             logger.info(
-                "Recieved event in subsystem: {}".format(changes)
+                "Received event in subsystem: {}".format(changes)
             )  # handle changes
 
             # The state has now changed
@@ -866,9 +878,7 @@ def mpd_watch_track(client, session, config):
                         try:
                             # Extract current "played" value
                             played = int(
-                                client.sticker_get(
-                                    "song", song["file"], "played"
-                                )
+                                client.sticker_get("song", song["file"], "played")
                             )
                         # This error could be either the song doesnt have the
                         # sticker or stickers arent activated in the mpd session
@@ -931,7 +941,7 @@ def mpd_watch_track(client, session, config):
                             reject_track = title
                     else:
                         logger.warn(
-                            "Can't scrobble yet, time elapsed ({}s) < adjustted duration ({}s)".format(
+                            "Can't scrobble yet, time elapsed ({}s) < adjusted duration ({}s)".format(
                                 real_time_elapsed,
                                 (scrobble_threshold / 100) * song_duration,
                             )
@@ -1013,6 +1023,13 @@ def save_pid(file_path, pid=None):
         pid_file.writelines(str(pid) + "\n")
         logger.info("Wrote PID to file: {}".format(file_path))
 
+    atexit.register(rm_pid_atexit, Path(file_path))
+
+
+def rm_pid_atexit(pid_file_path):
+    "Delete pid file atexit handler"
+    pid_file_path.unlink()
+
 
 def fork(config):
     """
@@ -1063,11 +1080,13 @@ def connect_to_mpd(host, port):
 
 
 def cli_run():
-    """ Command line entrypoint """
+    """Command line entrypoint"""
 
     session = ""
     config = configure()
-    logger.info("Starting up YAMS v{}".format(yams.VERSION))
+    logger.info(
+        "Starting up YAMS v{}".format(importlib.metadata.version("YAMScrobbler"))
+    )
 
     session_file = config["session_file"]
     base_url = config["base_url"]

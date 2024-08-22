@@ -87,9 +87,15 @@ Run `yams` and follow the printed instructions to authenticate with Last.FM
 
 ### Configuration Files
 
-If it can't find a config file by default, YAMS will create a default config file, log, cache, and session file in `$HOME/.config/yams`, however it will also accept config files in `$HOME/.yams` or `./.yams` (theoretically configs in `$HOME` or the current working directory can be read in, as well).
+If it can't find a config file by default, YAMS will create a default config file, log, cache, and session file.
 
-YAMS will only create its own directory/configuration file if none of the previous directories exist.
+* `yams.yml`: The primary configuration file will be placed in your user config dir (usually `$XDG_CONFIG_HOME`).
+* `yams.pid`: The PID file will be placed in your user runtime dir (usually `$XDG_RUNTIME_DIR`).
+* `yams.log`: The primary log file will be placed in your user state directory (usually `$XDG_STATE_HOME`).
+* `.lastfm_session`: The session file will also be placed in your user state directory.
+* `scrobbles.cache`: The failed scrobbles cache will be placed in your user cache directory (usually `$XDG_CACHE_HOME`).
+
+The locations of these folders are different for every platform, consult [platformdirs](https://github.com/platformdirs/platformdirs) for more info.
 
 ### Help
 
@@ -104,7 +110,7 @@ Here's the output for `--help`:
     ~/.config/yams, ~/.yams, or your current working directory. Create one of
     these paths if need be.
 
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       -m 127.0.0.1, --mpd-host 127.0.0.1
                             Your MPD instance's host
@@ -112,7 +118,8 @@ Here's the output for `--help`:
                             Your MPD instance's port
       -s ./.lastfm_session, --session-file-path ./.lastfm_session
                             Where to read in/save your session file to. Defaults
-                            to inside your config directory.
+                            to inside your $XDG_STATE_HOME directory. (Default:
+                            '$HOME"/.local/state/yams')
       --api-key API_KEY     Your last.fm api key
       --api-secret API_SECRET
                             Your last.fm api secret
@@ -132,13 +139,14 @@ Here's the output for `--help`:
                             that to be the default. Default: False
       -l /path/to/log, --log-file /path/to/log
                             Full path to a log file. If not set, a log file called
-                            "yams.log" will be placed in the current config
-                            directory.
+                            "yams.log" will be placed in $XDG_STATE_HOME.
+                            (Default:"$HOME"/.local/state")
       -c /path/to/cache, --cache-file /path/to/cache
                             Full path to the scrobbles cache file. This stores
                             failed scrobbles for upload at a later date. If not
                             set, a log file called "scrobbles.cache" will be
-                            placed in the current config directory.
+                            placed in the $XDG_CACHE_HOME.
+                            (Default:"$HOME"/.cache")
       -C ~/my_config, --config ~/my_config
                             Your config to read
       -N, --no-daemon       If set to true, program will not be run as a daemon
