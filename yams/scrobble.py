@@ -2,22 +2,23 @@
 
 import atexit
 import hashlib
-import os
-import logging
 import importlib.metadata
-from pathlib import Path
-import platformdirs
+import logging
+import os
 import select
-from sys import exit
 import time
 import xml.etree.ElementTree as ET
+from pathlib import Path
+from sys import exit
 
+import platformdirs
 import requests
-from mpd import MPDClient
-from mpd.base import ConnectionError, CommandError
 import yaml
+from mpd import MPDClient
+from mpd.base import CommandError, ConnectionError
 
-from yams.configure import configure, remove_log_stream_of_type, DEFAULT_CACHE_FILENAME
+from yams.configure import (DEFAULT_CACHE_FILENAME, configure,
+                            remove_log_stream_of_type)
 
 MAX_TRACKS_PER_SCROBBLE = 50
 SCROBBLE_RETRY_INTERVAL = 10
@@ -1088,7 +1089,7 @@ def cli_run():
         "Starting up YAMS v{}".format(importlib.metadata.version("YAMScrobbler"))
     )
 
-    session_file = config["session_file"]
+    session_file = os.path.expanduser(config["session_file"])
     base_url = config["base_url"]
     api_key = config["api_key"]
     api_secret = config["api_secret"]
